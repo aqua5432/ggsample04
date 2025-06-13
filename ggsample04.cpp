@@ -23,6 +23,65 @@
 // アニメーションの周期（秒）
 constexpr auto cycle{ 5.0 };
 
+void qmake(float* q, float x, float y, float z, float a)
+{
+  float l = x * x + y * y + z * z;
+  if (l != 0.0f) {
+    float s = sin(a *= 0.5f) / sqrt(l);
+    q[0] = x * s;
+    q[1] = y * s;
+    q[2] = z * s;
+    q[3] = cos(a);
+  }
+}
+
+void slerp(float* p, const float* q, const float* r, float t){
+  const auto qr{ q[0] * r[0] + q[1] * r[1] + q[2] * r[2] + q[3] * r[3]};
+  const auto ss{ 1.0f - qr * qr };
+  if (ss == 0.0) {
+    p[0] = q[0];
+    p[1] = q[1];
+    p[2] = q[2];
+    p[3] = q[3];
+  }
+  else {
+    const auto sp{ sqrt(ss) };
+    const auto ph{ acos(qr) };
+    const auto pt{ ph * t };
+    const auto t1{ sin(pt) / sp };
+    const auto t0{ sin(ph - pt) / sp };
+    p[0] = q[0] * t0 + r[0] * t1;
+    p[1] = q[1] * t0 + r[1] * t1;
+    p[2] = q[2] * t0 + r[2] * t1;
+    p[3] = q[3] * t0 + r[3] * t1;
+  }
+}
+
+void qrot(float* m, const float* q)
+{
+  float xx = q[0] * q[0] * 2.0f;
+  float yy = q[1] * q[1] * 2.0f;
+  float zz = q[2] * q[2] * 2.0f;
+  float xy = q[0] * q[1] * 2.0f;
+  float yz = q[1] * q[2] * 2.0f;
+  float zx = q[2] * q[0] * 2.0f;
+  float xw = q[0] * q[3] * 2.0f;
+  float yw = q[1] * q[3] * 2.0f;
+  float zw = q[2] * q[3] * 2.0f;
+  m[0] = 1.0f - yy - zz;
+  m[1] = xy + zw;
+  m[2] = zx - yw;
+  m[4] = xy - zw;
+  m[5] = 1.0f - zz - xx;
+  m[6] = yz + xw;
+  m[8] = zx + yw;
+  m[9] = yz - xw;
+  m[10] = 1.0f - xx - yy;
+  m[3] = m[7] = m[11] =
+    m[12] = m[13] = m[14] = 0.0f;
+  m[15] = 1.0f;
+}
+
 //
 // アプリケーション本体
 //
@@ -123,8 +182,14 @@ int GgApp::main(int argc, const char* const* argv)
 
     // 時刻 t にもとづく回転アニメーション
     GLfloat mr[16];                   // 回転の変換行列
+
     // 【宿題】ここを解答してください（下の loadIdentity() を置き換えてください）
-    loadIdentity(mr);
+    GLfloat sp[4], ep[4], q[4];
+    qmake(sp, 1, 0, 0, 1);
+    qmake(ep, 0, 0, 1, 2);
+    slerp(q, sp, ep, t);
+    qrot(mr, q);
+
 
     // 時刻 t にもとづく平行移動アニメーション
     float location[3];                // 現在位置
